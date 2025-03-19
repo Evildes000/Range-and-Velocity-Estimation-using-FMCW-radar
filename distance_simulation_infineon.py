@@ -22,7 +22,7 @@ print(f"slope is: {slope}")
 f_IFmax = (slope*2*maxR)/c #Maximum IF frequency
 f_IF = (slope*2*r0)/c #Current IF frequency
 
-Nd = 128 #Number of chirp
+Nd = 64 #Number of chirp
 Nr = 1024 #Numnber ADC sampling points
 vres = (c/fc)/(2*Nd*(Tchirp+endle_time)) #Speed resolution 
 Fs = Nr/Tchirp #Sampling rate
@@ -30,20 +30,113 @@ Fs = Nr/Tchirp #Sampling rate
 
 print(f"Fs is: {Fs}")
 
+#################################################################################
 # generate Tx 
 # t = np.linspace(0,Nd*Tchirp,Nr*Nd) #Time of Tx and Rx
-t = np.linspace(0,Nd*Tchirp,Nr*Nd)
-print(f"t is: {t}")
-angle_freq = fc*t+(slope*t*t)/2 #Tx signal angle speed
-freq = fc + slope*t #Tx frequency
-Tx = np.cos(2*np.pi*angle_freq) #Waveform of Tx
+t = np.arange(0, Nd*Nr)/Fs
+
+# time period of one chrip
+one_Tchirp = t[0:Nr]
+# angle_freq = fc*t+(slope*t*t)/2 #Tx signal angle speed
+angle_freq_chirp = fc*one_Tchirp + (slope*one_Tchirp*one_Tchirp)/2 # angle frequency of one chirp
+# freq = fc + slope*t #Tx frequency
+freq_chirp = fc + slope*one_Tchirp
+one_chirp = np.cos(2*np.pi*angle_freq_chirp)
+# Tx = np.cos(2*np.pi*angle_freq) #Waveform of Tx
+
+Tx = np.array([]) # Tx contains all chirps
+freq = np.array([]) # freq is the relation of frequency and time of all chirps 
+angle_freq = np.array([]) # angle_freq is angle over periods of all chirps
+
+for i in np.arange(0, Nd):
+    # Tx.append(one_chirp)
+    Tx = np.concatenate((Tx, one_chirp))
+    # freq.append(freq_chirp)
+    freq = np.concatenate((freq, freq_chirp))
+    angle_freq = np.concatenate((angle_freq, angle_freq_chirp))
+
+# plot chirp and change of frequency over one chirp period
+print(f"length of Tx and freq are: {len(Tx)}, {len(freq)}")
+
+plt.figure(0)
+plt.subplot(2,1,1)
+plt.plot(t[0:Nr], Tx[0:Nr])
+plt.xlabel("t/s")
+plt.ylabel("amp")
+plt.title("Chirp")
+plt.grid()
+
+plt.subplot(2,1,2)
+plt.plot(t[0:Nr], freq[0:Nr])
+plt.xlabel("t/s")
+plt.ylabel("freq")
+plt.title("Freq vs Time")
+plt.grid()
+
+plt.show()
+
+# compute Rx
+td = 2*r0 / c
+dt = 1/Fs
+delay_index = round(td/dt) - 1
+print(f"delay_index is: {delay_index}")
+IF = slope*t[delay_index] 
+print(f"IF is: {IF}")
+Rx = Tx
+
+plt.figure(1)
+plt.subplot(2,1,1)
+plt.plot(t[0:Nr], Tx[0:Nr])
+plt.plot((t+td)[0:Nr], Rx[0:Nr])
+plt.legend(["Tx", "Rx"])
+plt.xlabel("t/s")
+plt.ylabel("amp")
+plt.grid()
+
+plt.subplot(2,1,2)
+plt.plot(t[0:Nr], freq[0:Nr])
+plt.plot((t+td)[0:Nr], freq[0:Nr])
+plt.legend(["Tx", "Rx"])
+plt.xlabel("t/s")
+plt.ylabel("amp")
+plt.grid()
+
+plt.show()
+
+# IF signal
+IF_angle = angle_freq[delay_index:] - angle_freq[:-delay_index]
+IF_signal = np.cos(2*np.pi*IF_angle)
+IF_t = t[delay_index:]
+plt.figure(2)
+plt.plot(IF_t[0:1024], IF_signal[0:1024])
+plt.title("IF_signal")
+plt.xlabel("t/s")
+plt.ylabel("amp")
+plt.grid()
+plt.show()
+
+# FFT of IF signal
+IF_fft = np.abs(np.fft.fft(IF_signal))
+IF_fft_freq = c * np.fft.fftfreq(len(IF_fft), d=1/Fs) / (2*slope)
+plt.figure(3)
+plt.plot(IF_fft_freq, IF_fft)
+plt.xlabel("range/m")
+plt.ylabel("amp")
+plt.title("FFT of IF Signal")
+plt.grid()
+plt.show()
+
+# estimate the velocity
+
+
+
 
 """
 plt.figure(0)
 plt.plot(t[0:1024], Tx[0:1024])
 plt.title("Tx")
 plt.show()
-"""
+
 
 plt.figure(0)
 plt.plot(t, freq)
@@ -127,3 +220,5 @@ plt.xlabel("v m/s ")
 plt.ylabel("amp")
 plt.grid()
 plt.show()
+"
+"""
