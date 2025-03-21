@@ -9,8 +9,8 @@ fc = 77e9 #Carrier frequency
 c = 3e8 #Speed of light
 lamda = c / fc 
 
-r0 = 100 #Target distance
-v0 = 70 #Target speed
+r0 = 200 #Target distance
+v0 = 50 #Target speed
 
 B = c/(2*rangeRes) #Bandwidth
 print(f"bandwidth is: {B}")
@@ -57,7 +57,7 @@ plt.show()
 delay = 2 * r0 / c
 dt = 2*v0*Tchirp/c
 print(f"dt is: {dt}")
-angle_phase1 = 2 * np.pi * ( fc*(t_chirp + delay) + slope * (t_chirp+delay) * (t_chirp+delay)/2)
+angle_phase1 = 2 * np.pi * ( fc*(t_chirp - delay) + slope * (t_chirp-delay) * (t_chirp-delay)/2)
 # Rx = np,cos(phase)
 angle_phase_diff = angle_phase1 - angle_phase0
 IFx = np.cos(angle_phase_diff)
@@ -73,6 +73,11 @@ plt.show()
 
 # plot fft of the first IFx
 IFx_fft = np.abs(np.fft.fft(IFx))
+threshold = np.max(IFx_fft)/10000
+for i in np.arange(len(IFx_fft)):
+    if IFx_fft[i] < threshold:
+        IFx_fft[i] = 0
+
 range =c * np.fft.fftfreq(len(IFx_fft), d=1/Fs) / (2 * slope)
 plt.figure(2)
 plt.plot(range, IFx_fft)
@@ -85,93 +90,27 @@ plt.show()
 
 angle_phase_mat = np.zeros(shape=(Nd, Nr))
 angle_phase_mat[0] = angle_phase1
-# incresment = delay + dt
 for i in np.arange(1, Nd):
-    # for each chirp, dt is a constant number
-    incresment = delay + i*dt
-    angle_phase_mat[i] = 2 * np.pi * ( fc*(t_chirp + incresment) + slope * (t_chirp+incresment) * (t_chirp+incresment)/2)
-    
-# calculate FFT for each chirp and its reflected chirp
-IF_mat = np.zeros(shape=(Nd,Nr))
-IF_signal_mat = np.zeros(shape=(Nd,Nr))
-FFT_signal_mat = np.zeros(shape=(Nd,Nr), dtype=np.complex64)
-for i in np.arange(0, Nd):
-    IF_mat[i] = angle_phase0 - angle_phase_mat[i]
-    IF_signal_mat[i] = np.cos(IF_mat[i])
-    FFT_signal_mat[i] = np.fft.fft(IF_signal_mat[i])
+    increment_delay = delay + i * dt
+    angle_phase_mat[i] = 2 * np.pi * ( fc*(t_chirp - increment_delay) + slope * (t_chirp-increment_delay) * (t_chirp-increment_delay)/2) 
 
 
-
-# check if the range is the same when using other chirps
-"""
-IFx_fft = np.abs(FFT_signal_mat[20])
-range =c * np.fft.fftfreq(len(IFx_fft), d=1/Fs) / (2 * slope)
-plt.figure(3)
-plt.plot(range, IFx_fft)
-plt.xlabel("range m/s")
-plt.ylabel("amp")
-plt.title("range estimation")
-plt.grid()
-plt.show()
-"""
-# compute velocity
-doppler_fft = np.abs(np.fft.fft2(IF_signal_mat))
-plt.figure(3)
-plt.imshow(doppler_fft)
-plt.show()
-# compute FFT for rach row
-
-"""
-angle_phase_array = np.zeros(shape=(Nd,Nr))
-angle_phase_array[0] = angle_phase0 
+angle_diff_mat = np.zeros(shape=(Nd, Nr)) # used to store angle phase difference 
+angle_diff_mat[0] = angle_phase_diff
 for i in np.arange(1, Nd):
-    incresment = i * Tchirp
-    angle_phase_array[i] = 2 * np.pi * ( fc*(t_chirp + incresment) + slope * (t_chirp+incresment) * (t_chirp+incresment)/2)"
+    # angle_diff_mat[i] = angle_phase_mat[i] - angle_diff_mat[i-1]
+    angle_diff_mat[i] = angle_phase_mat[i] - angle_phase0
 
-# angle phase array of Rx
-delay_array = np.array([delay])
-
-for i in np.arange(1,Nd):
-    delay = delay + i*dt
-    delay_array = np.concatenate((delay_array, t_chirp+delay)) 
-
-# calculate phase for each delay
-phase_mat = np.zeros(shape=(Nd, Nr)) # mat is used to store phase of each 
-for i in np.arange(0, Nd):
-    phase_buffer = np.array(2 * np.pi * ( fc*(t_chirp + delay_array[i]) + slope * (t_chirp+delay_array[i]) * (t_chirp+delay_array[i])/2))
-    print(f"type of phase_buffer is: {type(phase_buffer)}")
-    # phase_buffer = np.transpose(phase_buffer)
-    # print(f"shape of phase_buffer: {phase_buffer.shape}")
-    # phase_mat = np.concatenate((phase_mat, phase_buffer), axis=0)
-    # numpy的axis, along rows 叠加每个相位
-    # phase_mat = np.vstack((phase_mat, phase_buffer))
-    phase_mat[i] = phase_buffer
-
-print(f"shape of phase_mat: {phase_mat.shape}")
-
-# calculate phase differnce
-phase_diff_mat = np.zeros(shape=(Nd, Nr))
-# Fx_mat = np.zeros(shape=(Nd, Nr))
-for i in np.arange(0, Nd):
-    # phase_diff_buffer = phase_buffer[i] - phase0
-    # phase_diff_mat = np.concatenate((phase_diff_mat, phase_diff_buffer), axis=0)
-    phase_diff_mat[i] = phase_buffer[i] - phase0
-    # IFx_mat[i] = np.cos(phase_diff_mat[i])
+IFx_mat = np.zeros(shape=(Nd, Nr)) # used to store IF signal
+IFx_mat[0] = IFx
+for i in np.arange(1,  Nd):
+    IFx_mat[i] = np.cos(angle_diff_mat[i])
 
 
-# take one column data to estimate velocity
-first = np.abs(np.fft.fft(np.cos(phase_diff_mat[:,1])))
-# velocty = np.arange(0, Nd) * lamda / (4*np.pi*Tchirp)
-velocty = phase_diff_mat[1,1] * (lamda * np.fft.fftfreq(len(first), d = Tchirp)) / (4*np.pi*Tchirp)
-# Z_fft2 = abs(np.fft.fft2())
-plt.figure(3)
-plt.plot(velocty, first)
-# plt.imshow(Z_fft2[0:64, 0:512])
-plt.xlabel("m/s")
-plt.ylabel("amp")
-plt.title("velocity")
-plt.grid()
+# compute range FFT
+doppler_fft = np.abs(np.fft.fft2(IFx_mat))
+factor =  (c / fc) / (4*np.pi*Tchirp)
+print(f"the factor is: {factor}")
+plt.figure(0)
+plt.imshow(doppler_fft[0:64, 0:512])
 plt.show()
-
-
-"""
