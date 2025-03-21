@@ -54,8 +54,8 @@ plt.show()
 
 
 # estimate range
-delay = 2 * r0 / c
-dt = 2*v0*Tchirp/c
+delay = 2 * r0 / c # delay when the target is static
+dt = 2*v0*Tchirp/c # addtional delay when the target moves
 print(f"dt is: {dt}")
 angle_phase1 = 2 * np.pi * ( fc*(t_chirp - delay) + slope * (t_chirp-delay) * (t_chirp-delay)/2)
 # Rx = np,cos(phase)
@@ -73,22 +73,17 @@ plt.show()
 
 # plot fft of the first IFx
 IFx_fft = np.abs(np.fft.fft(IFx))
-threshold = np.max(IFx_fft)/10000
-for i in np.arange(len(IFx_fft)):
-    if IFx_fft[i] < threshold:
-        IFx_fft[i] = 0
-
 range =c * np.fft.fftfreq(len(IFx_fft), d=1/Fs) / (2 * slope)
 plt.figure(2)
 plt.plot(range, IFx_fft)
-plt.xlabel("range m/s")
+plt.xlabel("range/m")
 plt.ylabel("amp")
 plt.title("range estimation")
 plt.grid()
 plt.show()
 
 
-angle_phase_mat = np.zeros(shape=(Nd, Nr))
+angle_phase_mat = np.zeros(shape=(Nd, Nr)) # used to store the angle phase of Rx
 angle_phase_mat[0] = angle_phase1
 for i in np.arange(1, Nd):
     increment_delay = delay + i * dt
@@ -109,8 +104,8 @@ for i in np.arange(1,  Nd):
 
 # compute range FFT
 doppler_fft = np.abs(np.fft.fft2(IFx_mat))
-factor =  (c / fc) / (4*np.pi*Tchirp)
-print(f"the factor is: {factor}")
+# factor =  (c / fc) / (4*np.pi*Tchirp)
+# print(f"the factor is: {factor}")
 plt.figure(0)
 plt.imshow(doppler_fft[0:64, 0:512])
 plt.show()
