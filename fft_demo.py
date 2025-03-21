@@ -17,11 +17,17 @@ signal = signal1 + signal2
 # FFT
 fft_signal = np.fft.fft(signal)
 print(f"fft_siganl is: {fft_signal}")
-fft_signal_abs = abs(fft_signal) / len(signal)
+fft_signal_abs = abs(fft_signal)
 argmax_index = np.argmax(fft_signal_abs)
 print(f"argmax index: {argmax_index}")
 # fft_signal1_freq = np.fft.shift(np.fft.fftfreq(len(fft_signal1), d = 1/fs))
 freq = np.fft.fftfreq(len(fft_signal), d = 1/fs) # doesn't need fftshift
+
+threshold = np.max(fft_signal_abs)/10000
+for i in np.arange(0, len(fft_signal_abs)):
+    if fft_signal_abs[i] < threshold:
+        fft_signal[i] = 0
+
 
 # fft_signal2 = abs(np.fft.fft(signal2))
 # fft_signal2_freq = np.fft.shift(np.fft.fftfreq(len(fft_signal2), d = 1/fs))
@@ -44,13 +50,6 @@ plt.ylabel("amp")
 plt.grid()
 plt.show()
 
-# plots phase
-# Since fft_signal contains many complex numbers which are very small, they act like "noise" for compute of phase.
-# so we need to filter them out
-threshold = np.max(fft_signal_abs)/10000
-for i in np.arange(len(fft_signal_abs)):
-    if fft_signal_abs[i] < threshold:
-        fft_signal[i] = 0 
 
 plt.figure(2)
 phase = np.angle(fft_signal) / np.pi
