@@ -104,8 +104,6 @@ for i in np.arange(1,  Nd):
 
 # compute range FFT
 doppler_fft = np.abs(np.fft.fft2(IFx_mat))
-# factor =  (c / fc) / (4*np.pi*Tchirp)
-# print(f"the factor is: {factor}")
 plt.figure(0)
 plt.imshow(doppler_fft[0:64, 0:512])
 plt.show()
